@@ -11,6 +11,22 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 //Function to process upload
+const getValueAt = (x, y, img) => {
+  const data = img.data;
+  const xRound = Math.round(x);
+  const yRound = Math.round(y);
+  if (xRound > img.width || xRound < 0 || yRound > img.height || yRound < 0) {
+    return { r: 0, g: 0, b: 0, a: 255 };
+  } else {
+    const index = (yRound * img.width + xRound) * 4;
+    return {
+      r: data[index],
+      g: data[index + 1],
+      b: data[index + 2],
+      a: data[index + 3],
+    };
+  }
+};
 const upload = async () => {
   if (input.files.length > 0) {
     const file = input.files[0];
@@ -29,6 +45,30 @@ const upload = async () => {
           resolve(parsePPM(file_data));
         }),
     );
+    console.log(ppm_img_data);
+    let image_data = ctx.createImageData(canvas.width, canvas.height);
+
+    const render = (time) => {
+      const theta = 0.001 * time;
+      for (let x = 0; x < canvas.width; x++) {
+        for (let y = 0; y < canvas.height; y++) {
+          const source_x = x * Math.cos(theta) - y * Math.sin(theta);
+          const source_y = x * Math.sin(theta) + y * Math.cos(theta);
+          const { r, g, b, a } = getValueAt(source_x, source_y, ppm_img_data);
+          const index = (y * ppm_img_data.width + x) * 4;
+          image_data.data[index] = r;
+          image_data.data[index + 1] = g;
+          image_data.data[index + 2] = b;
+          image_data.data[index + 3] = a;
+        }
+      }
+
+      ctx.putImageData(image_data, 0, 0);
+
+      requestAnimationFrame(render);
+    };
+    requestAnimationFrame(render);
+    //render(5)
 
     /*
      * TODO: ADD CODE HERE TO DO 2D TRANSFORMATION and ANIMATION
