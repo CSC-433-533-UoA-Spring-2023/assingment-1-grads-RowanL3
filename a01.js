@@ -10,6 +10,18 @@ const input = document.getElementById("load_image");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
+// transformations
+const shift = (x, y) => [
+  [1, 0, x],
+  [0, 1, y],
+  [0, 0, 1],
+];
+const rotate = (theta) => [
+  [Math.cos(theta), -Math.sin(theta), 0],
+  [Math.sin(theta), Math.cos(theta), 0],
+  [0, 0, 1],
+];
+
 //Function to process upload
 const getValueAt = (x, y, img) => {
   const data = img.data;
@@ -50,11 +62,17 @@ const upload = async () => {
 
     const render = (time) => {
       const theta = 0.001 * time;
+      const transformations = bulkMultiplyMatrix3x3([
+        shift(canvas.width / 2, canvas.height / 2),
+        rotate(theta),
+        shift(-canvas.width / 2, -canvas.height / 2),
+      ]);
       for (let x = 0; x < canvas.width; x++) {
         for (let y = 0; y < canvas.height; y++) {
-          const source_x = x * Math.cos(theta) - y * Math.sin(theta);
-          const source_y = x * Math.sin(theta) + y * Math.cos(theta);
-          const { r, g, b, a } = getValueAt(source_x, source_y, ppm_img_data);
+          const source = toCartesian(
+            multiplyVectorMatrix3x3(transformations, toHomogeneous([x, y])),
+          );
+          const { r, g, b, a } = getValueAt(source[0], source[1], ppm_img_data);
           const index = (y * ppm_img_data.width + x) * 4;
           image_data.data[index] = r;
           image_data.data[index + 1] = g;
