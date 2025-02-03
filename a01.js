@@ -22,13 +22,19 @@ const rotate = (theta) => [
   [0, 0, 1],
 ];
 
+const scale = (xScale, yScale) => [
+  [xScale, 0, 0],
+  [0, yScale, 0],
+  [0, 0, 1],
+];
+
 //Function to process upload
 const getValueAt = (x, y, img) => {
   const data = img.data;
   const xRound = Math.round(x);
   const yRound = Math.round(y);
   if (xRound > img.width || xRound < 0 || yRound > img.height || yRound < 0) {
-    return { r: 0, g: 0, b: 0, a: 255 };
+    return { r: 255, g: 255, b: 255, a: 255 };
   } else {
     const index = (yRound * img.width + xRound) * 4;
     return {
@@ -59,11 +65,18 @@ const upload = async () => {
     );
     console.log(ppm_img_data);
     let image_data = ctx.createImageData(canvas.width, canvas.height);
+    const { width, height } = canvas
 
     const render = (time) => {
       const theta = 0.001 * time;
+      const thetaModulo = theta % (Math.PI / 2)
+      const xScale = (Math.abs(width * Math.cos(thetaModulo) + Math.abs(height * Math.sin(thetaModulo)))) / width
+      const yScale = (Math.abs(width * Math.sin(thetaModulo) + Math.abs(height * Math.cos(thetaModulo)))) /  height
+      const scalar = Math.max(xScale, yScale)
+
       const transformations = bulkMultiplyMatrix3x3([
         shift(canvas.width / 2, canvas.height / 2),
+        scale(scalar, scalar),
         rotate(theta),
         shift(-canvas.width / 2, -canvas.height / 2),
       ]);
