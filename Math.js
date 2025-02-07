@@ -13,12 +13,11 @@ const multiplyMatrix3x3 = (m1, m2) =>
   );
 
 // writing this one out for performance as it runs every pixel
-const multiplyVectorMatrix3x3 = (m, v) =>
-   [m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2],
-    m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2],
-    m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2]
-  ]
-
+const multiplyVectorMatrix3x3 = (m, v) => [
+  m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2],
+  m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2],
+  m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2],
+];
 
 const bulkMultiplyMatrix3x3 = (matrices) =>
   matrices.reduce((acc, m) => multiplyMatrix3x3(acc, m));

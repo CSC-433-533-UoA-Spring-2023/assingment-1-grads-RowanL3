@@ -9,6 +9,8 @@
 const input = document.getElementById("load_image");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+// prevents memory leak when uploading new files
+let process_counter = 0;
 
 // transformations
 const shift = (x, y) => [
@@ -28,24 +30,9 @@ const scale = (xScale, yScale) => [
   [0, 0, 1],
 ];
 
-//Function to process upload
-const getValueAt = (x, y, img) => {
-  const data = img.data;
-  const xRound = Math.round(x);
-  const yRound = Math.round(y);
-  if (xRound > img.width || xRound < 0 || yRound > img.height || yRound < 0) {
-    return { r: 255, g: 255, b: 255, a: 255 };
-  } else {
-    const index = (yRound * img.width + xRound) * 4;
-    return {
-      r: data[index],
-      g: data[index + 1],
-      b: data[index + 2],
-      a: data[index + 3],
-    };
-  }
-};
 const upload = async () => {
+  process_counter++;
+  const process_id = process_counter;
   if (input.files.length > 0) {
     const file = input.files[0];
     console.log("You chose", file.name);
@@ -55,7 +42,7 @@ const upload = async () => {
     const fReader = new FileReader();
     fReader.readAsBinaryString(file);
 
-    const ppm_img_data = await new Promise(
+    const sourceImage = await new Promise(
       (resolve) =>
         (fReader.onload = () => {
           //if successful, file data has the contents of the uploaded file
@@ -63,51 +50,81 @@ const upload = async () => {
           resolve(parsePPM(file_data));
         }),
     );
-    console.log(ppm_img_data);
-    let image_data = ctx.createImageData(canvas.width, canvas.height);
-    const { width, height } = canvas
+    const outputImage = ctx.createImageData(canvas.width, canvas.height);
+    const { width, height } = canvas;
 
     const render = (time) => {
       const theta = 0.001 * time;
-      const thetaModulo = theta % (Math.PI / 2)
-      const xScale = (Math.abs(width * Math.cos(thetaModulo) + Math.abs(height * Math.sin(thetaModulo)))) / width
-      const yScale = (Math.abs(width * Math.sin(thetaModulo) + Math.abs(height * Math.cos(thetaModulo)))) /  height
-      const scalar = Math.max(xScale, yScale)
+      const thetaModulo = theta % (Math.PI / 2);
+      const xScale =
+        (width * Math.cos(thetaModulo) + height * Math.sin(thetaModulo)) /
+        width;
+      const yScale =
+        (width * Math.sin(thetaModulo) + height * Math.cos(thetaModulo)) /
+        height;
+      const maxScale = Math.max(xScale, yScale);
 
       const transformations = bulkMultiplyMatrix3x3([
         shift(canvas.width / 2, canvas.height / 2),
-        scale(scalar, scalar),
+        scale(maxScale, maxScale),
         rotate(theta),
         shift(-canvas.width / 2, -canvas.height / 2),
       ]);
+      showMatrix(transformations);
       for (let x = 0; x < canvas.width; x++) {
         for (let y = 0; y < canvas.height; y++) {
           const source = toCartesian(
             multiplyVectorMatrix3x3(transformations, toHomogeneous([x, y])),
           );
-          const { r, g, b, a } = getValueAt(source[0], source[1], ppm_img_data);
-          const index = (y * ppm_img_data.width + x) * 4;
-          image_data.data[index] = r;
-          image_data.data[index + 1] = g;
-          image_data.data[index + 2] = b;
-          image_data.data[index + 3] = a;
+          const sourceX = Math.round(source[0]);
+          const sourceY = Math.round(source[1]);
+          const outputIndex = (y * sourceImage.width + x) * 4;
+          if (
+            sourceX > sourceImage.width ||
+            sourceX < 0 ||
+            sourceY > sourceImage.height ||
+            sourceY < 0
+          ) {
+            outputImage.data[outputIndex] = 255;
+            outputImage.data[outputIndex + 1] = 255;
+            outputImage.data[outputIndex + 2] = 255;
+            outputImage.data[outputIndex + 3] = 255;
+          } else {
+            const sourceIndex = (sourceY * sourceImage.width + sourceX) * 4;
+            outputImage.data[outputIndex] = sourceImage.data[sourceIndex];
+            outputImage.data[outputIndex + 1] =
+              sourceImage.data[sourceIndex + 1];
+            outputImage.data[outputIndex + 2] =
+              sourceImage.data[sourceIndex + 2];
+            outputImage.data[outputIndex + 3] =
+              sourceImage.data[sourceIndex + 3];
+          }
         }
       }
 
-      ctx.putImageData(image_data, 0, 0);
+      ctx.putImageData(outputImage, 0, 0);
 
-      requestAnimationFrame(render);
+      if (process_id === process_counter) {
+        requestAnimationFrame(render);
+      }
     };
     requestAnimationFrame(render);
-    //render(5)
-
-    /*
-     * TODO: ADD CODE HERE TO DO 2D TRANSFORMATION and ANIMATION
-     * Modify any code if needed
-     * Hint: Write a rotation method, and call WebGL APIs to reuse the method for animation
-     */
   }
 };
+
+function showMatrix(matrix) {
+  for (let i = 0; i < matrix.length; i++) {
+    for (let j = 0; j < matrix[i].length; j++) {
+      matrix[i][j] = Math.floor(matrix[i][j] * 100) / 100;
+    }
+  }
+  document.getElementById("row1").innerHTML =
+    "row 1:[ " + matrix[0].toString().replaceAll(",", ",\t") + " ]";
+  document.getElementById("row2").innerHTML =
+    "row 2:[ " + matrix[1].toString().replaceAll(",", ",\t") + " ]";
+  document.getElementById("row3").innerHTML =
+    "row 3:[ " + matrix[2].toString().replaceAll(",", ",\t") + " ]";
+}
 
 // Load PPM Image to Canvas
 function parsePPM(file_data) {
@@ -147,7 +164,7 @@ function parsePPM(file_data) {
     image_data.data[i] = bytes[pixel_pos * 3]; // Red ~ i + 0
     image_data.data[i + 1] = bytes[pixel_pos * 3 + 1]; // Green ~ i + 1
     image_data.data[i + 2] = bytes[pixel_pos * 3 + 2]; // Blue ~ i + 2
-    image_data.data[i + 3] = 255; // A channel is deafult to 255
+    image_data.data[i + 3] = 255; // A channel is default to 255
   }
   ctx.putImageData(
     image_data,

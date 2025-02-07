@@ -18,6 +18,7 @@ Included files (**PLEASE ADD/UPDATE THIS LIST**):
 - a01.js -- a sample javascript file for functionality with the image uploading, and a method to parse PPM images
 - Math.js -- some math functions that you can use and extend yourself
 - bunny.ppm -- a test image
+- square.ppm -- a square test image
 - kola.ppm -- a very large test image
 
 **PLEASE PROVIDE ANY ATTRIBUTION HERE**
